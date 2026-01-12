@@ -7,21 +7,35 @@ import json
 from rest_framework import status
 import logging
 import uuid
-import json
-from django.http import HttpResponse
-from django.views import View
 from django.core.mail import send_mail
 # from django.utils.timezone import now
 from datetime import timedelta, timezone
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from rest_framework import status
-from .models import LoginUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import GenericAPIView
+from rest_framework.response import Response
 
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 logger = logging.getLogger(__name__)
+
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from .authentication import LoginUserJWTAuthentication
+
+class MyProtectedView(APIView):
+    authentication_classes = [LoginUserJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user  # This is now a LoginUser instance
+        return Response({
+            "email": user.email,
+            "name": f"{user.title} {user.first_name} {user.last_name}",
+            "role": user.role.name
+        },status=status.HTTP_200_OK)
+
 
 @method_decorator(csrf_exempt, name="dispatch")
 class LoginView(View):
@@ -33,7 +47,7 @@ class LoginView(View):
             data = json.loads(request.body)
             email = data.get("email")
             password = data.get("password")
-
+        
             if not email or not password:
                 return HttpResponse(
                     json.dumps({
@@ -50,6 +64,7 @@ class LoginView(View):
                 is_active=True
             )
             print("USER FOUND:", user)
+            print(password)
 
             if not user.check_password(password):
                 return HttpResponse(
@@ -158,7 +173,7 @@ class ForgotPasswordView(View):
                     "message": "Reset link sent to email"
                 }),
                 content_type="application/json",
-                status=200
+                status=status.HTTP_200_OK
             )
 
         except LoginUser.DoesNotExist:
@@ -168,7 +183,7 @@ class ForgotPasswordView(View):
                     "message": "Email not registered"
                 }),
                 content_type="application/json",
-                status=404
+                status=status.HTTP_404_NOT_FOUND
             )
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -187,7 +202,7 @@ class ResetPasswordView(View):
                 return HttpResponse(
                     json.dumps({"message": "Reset link expired"}),
                     content_type="application/json",
-                    status=400
+                    status=status.HTTP_400_BAD_REQUEST
                 )
             user.set_password(new_password)
             user.reset_token = None
@@ -200,7 +215,7 @@ class ResetPasswordView(View):
                     "message": "Password reset successful"
                 }),
                 content_type="application/json",
-                status=200
+                status=status.HTTP_200_OK
             )
 
         except LoginUser.DoesNotExist:
@@ -210,42 +225,46 @@ class ResetPasswordView(View):
                     "message": "Invalid or expired token"
                 }),
                 content_type="application/json",
-                status=400
+                status=status.HTTP_400_BAD_REQUEST
             )
 
 
-class UserView(GenericAPIView):
+class UserDropdownView(GenericAPIView):
+
     def get(self, request):
-        # status_filter = request.GET.get("status")
+        search = request.GET.get("search", "")
+        limit = int(request.GET.get("limit", 20))
 
-        users = LoginUser.objects.filter(is_active=True)
+        users = LoginUser.objects.filter(
+            is_active=True,
+            role__name="AGENT"
+        )
 
-
-        if not users:
-            return HttpResponse(
-                json.dumps({
-                    "status": "success",
-                    "message": "No User found",
-                    "count": 0,
-                    "data": []
-                }),
-                content_type="application/json",
-                status=status.HTTP_200_OK
+        if search:
+            users = users.filter(
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
             )
+
+        users = users.order_by("first_name")[:limit]
 
         data = [
             {
-              "email":user.email  
+                "id": user.id,
+                "email": user.email,
+                "name": f"{user.title} {user.first_name} {user.last_name}"
             }
             for user in users
         ]
 
+    
         return HttpResponse(
-                json.dumps({
-            "status": "success",
-            "message": "Users retrieved successfully",
-            "data": data
-        }))
- 
-
+                        json.dumps({
+                            "status": "success",
+                            "message": "Agent list fetched successfully",
+                            "data": data
+                        }),
+                        content_type="application/json",
+                        status=status.HTTP_200_OK)
     

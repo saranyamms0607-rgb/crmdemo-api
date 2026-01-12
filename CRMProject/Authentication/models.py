@@ -3,6 +3,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 import uuid
 from datetime import timedelta
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
 class LoginRole(models.Model):
     ROLE_CHOICES = (
@@ -17,34 +18,79 @@ class LoginRole(models.Model):
         return self.name
 
 
+class LoginUserManager(BaseUserManager):
 
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("Email is required")
 
-class LoginUser(models.Model):
+        # 🔑 Extract role BEFORE creating user
+        role_value = extra_fields.pop("role", None)
+
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+
+        # 🔐 Assign role correctly
+        if role_value:
+            if isinstance(role_value, LoginRole):
+                user.role = role_value
+            else:
+                user.role = LoginRole.objects.get(id=int(role_value))
+
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+
+        if not extra_fields.get("role"):
+            extra_fields["role"] = LoginRole.objects.get(name="ADMIN")
+
+        return self.create_user(email, password, **extra_fields)
+
+class LoginUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
+    phone_no =models.CharField(max_length=10)
+    title = models.CharField(max_length=3)
+    initial = models.CharField(max_length=3)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150, blank=True)
     password = models.CharField(max_length=255)
-    role = models.ForeignKey(LoginRole, on_delete=models.PROTECT)
+    role = models.ForeignKey(LoginRole, on_delete=models.PROTECT,null=True)
     is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False) 
+    is_superuser = models.BooleanField(default=False) 
     created_at = models.DateTimeField(auto_now_add=True)
-
+    objects = LoginUserManager()  
     reset_token = models.CharField(max_length=64, null=True, blank=True)
     reset_token_expiry = models.DateTimeField(null=True, blank=True)
 
-    # 🔐 Proper password setter
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-        self.save(update_fields=["password"])
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'title', 'role']
 
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
+    #  Django expects these properties for auth
+    # @property
+    # def is_authenticated(self):
+    #     return True
 
-    # 🔑 Generate reset token
+    # @property
+    # def is_anonymous(self):
+    #     return False
+
+    def get_full_name(self):
+        return f"{self.title} {self.first_name} {self.last_name}".strip()
+
+
+    # 🔑 Reset token
     def generate_reset_token(self):
         self.reset_token = uuid.uuid4().hex
         self.reset_token_expiry = timezone.now() + timedelta(minutes=15)
         self.save(update_fields=["reset_token", "reset_token_expiry"])
         return self.reset_token
 
-    # ⏳ Token validity check
     def is_reset_token_valid(self):
         return (
             self.reset_token

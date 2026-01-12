@@ -1,61 +1,69 @@
 import csv
+import json
 import random
+from faker import Faker
 
-first_names = [
-    "Arjun", "Priya", "Rahul", "Sneha", "Amit", "Neha", "Karthik",
-    "Ananya", "Rohit", "Pooja", "Vikram", "Divya", "Suresh", "Meera"
+fake = Faker()
+
+STATUS_CHOICES = [
+    "unassigned",
+    "assigned",
+    "second-attempt",
+    "third-attempt",
+    "completed",
+    "followup",
+    "deal-won",
+    "deal-lost",
+    "dnd",
+    "prospect",
 ]
 
-last_names = [
-    "Sharma", "Verma", "Iyer", "Reddy", "Gupta", "Patel",
-    "Mehta", "Nair", "Kapoor", "Malhotra"
+COUNT = 1000
+OUTPUT_FILE = "dummy_leads.csv"
+
+fieldnames = [
+    "name",
+    "email",
+    "phone",
+    "company",
+    "region",
+    "address",
+    "status",
+    "is_active",
 ]
 
-companies = [
-    "TechNova", "InnoSoft", "MediaMatic", "NextGen Corp",
-    "Cloudify", "DataWave", "PixelWorks", "GrowthLabs"
-]
-
-regions = ["North", "South", "East", "West"]
-
-used_phones = set()
-used_names = set()
-
-def generate_unique_phone():
-    while True:
-        phone = f"+91{random.randint(6000000000, 9999999999)}"
-        if phone not in used_phones:
-            used_phones.add(phone)
-            return phone
-
-def generate_unique_name():
-    while True:
-        name = f"{random.choice(first_names)} {random.choice(last_names)}"
-        if name not in used_names:
-            used_names.add(name)
-            return name
-
-rows = []
-
-for i in range(1, 101):
-    name = generate_unique_name()
-
-    rows.append({
-        "id": i,
-        "name": name,
-        "email": f"{name.lower().replace(' ', '.')}{i}@example.com",
-        "phone": generate_unique_phone(),
-        "company": random.choice(companies),
-        "region": random.choice(regions)
-    })
-
-# Write CSV
-with open("crm_test_data_clean.csv", "w", newline="", encoding="utf-8") as file:
-    writer = csv.DictWriter(
-        file,
-        fieldnames=["id", "name", "email", "phone", "company", "region"]
-    )
+with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as csvfile:
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
-    writer.writerows(rows)
 
-print("✅ 100 UNIQUE CRM records generated → crm_test_data_clean.csv")
+    for _ in range(COUNT):
+        emails = [
+            fake.email(),
+            fake.company_email(),
+        ]
+
+        phones = [
+            fake.phone_number(),
+            fake.phone_number(),
+        ]
+
+        address = {
+            "street": fake.street_address(),
+            "city": fake.city(),
+            "state": fake.state(),
+            "country": fake.country(),
+            "pincode": fake.postcode(),
+        }
+
+        writer.writerow({
+            "name": fake.name(),
+            "email": json.dumps(emails),
+            "phone": json.dumps(phones),
+            "company": fake.company(),
+            "region": fake.state(),
+            "address": json.dumps(address),
+            "status": random.choice(STATUS_CHOICES),
+            "is_active": random.choice([True, False]),
+        })
+
+print(f"✅ Successfully generated {COUNT} records in {OUTPUT_FILE}")

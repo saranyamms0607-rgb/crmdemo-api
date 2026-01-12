@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django_rest_passwordreset',
     'configurations',
     'crmapp',
+    'django_crontab',
 ]
 
 MIDDLEWARE = [
@@ -89,7 +90,7 @@ WSGI_APPLICATION = 'CRMProject.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': 'crm_db',
         'USER': 'root',
         'PASSWORD': '2006',
@@ -149,12 +150,15 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),  # auto logout after 30 mins
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=300),  # auto logout after 30 mins
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # stay logged in 7 days
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
+CRONJOBS = [
+    ('*/1 * * * *', 'crmapp.cron.send_followup_alerts'),
+]
 
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -164,9 +168,12 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "saranyamms0607@gmail.com"
-EMAIL_HOST_PASSWORD = "vxgoprfyqmvndmsh"  # NOT gmail password
+EMAIL_HOST_PASSWORD = "vxgoprfyqmvndmsh"  
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+AUTH_USER_MODEL = "Authentication.LoginUser"
 
 
+
+GOOGLE_API_KEY ="AIzaSyDEFVh7IWX2zFGAoXjkXbKlKlevVLgvrAk"
 
