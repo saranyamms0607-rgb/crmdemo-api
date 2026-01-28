@@ -27,6 +27,8 @@ urlpatterns = [
     path('api/auth/', include('Authentication.urls')),
     path("configurations/", include("configurations.urls")),
     path("crm/", include("crmapp.urls")),
+    path("reports/", include("reports.urls")),
+
     # path("api/crm/", include("crm.urls")),
 
     # JWT Auth APIs

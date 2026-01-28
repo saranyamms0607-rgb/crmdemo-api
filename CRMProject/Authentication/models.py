@@ -50,7 +50,12 @@ class LoginUserManager(BaseUserManager):
             extra_fields["role"] = LoginRole.objects.get(name="ADMIN")
 
         return self.create_user(email, password, **extra_fields)
-
+BRANCH_CHOICES= [
+        ("hopes", "Hopes"),
+        ("bangalore", "Bangalore"),
+        ("palampur", "Palampur"),
+        ("shivamogga", "Shivamogga"),
+    ]
 class LoginUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     phone_no =models.CharField(max_length=10)
@@ -58,12 +63,24 @@ class LoginUser(AbstractBaseUser, PermissionsMixin):
     initial = models.CharField(max_length=3)
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150, blank=True)
+    branch = models.CharField(
+        max_length=20,
+        choices=BRANCH_CHOICES,
+        default="hopes"
+    )
     password = models.CharField(max_length=255)
     role = models.ForeignKey(LoginRole, on_delete=models.PROTECT,null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False) 
     is_superuser = models.BooleanField(default=False) 
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="team_members"
+    )
     objects = LoginUserManager()  
     reset_token = models.CharField(max_length=64, null=True, blank=True)
     reset_token_expiry = models.DateTimeField(null=True, blank=True)
@@ -71,15 +88,7 @@ class LoginUser(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'title', 'role']
 
-    #  Django expects these properties for auth
-    # @property
-    # def is_authenticated(self):
-    #     return True
-
-    # @property
-    # def is_anonymous(self):
-    #     return False
-
+    
     def get_full_name(self):
         return f"{self.title} {self.first_name} {self.last_name}".strip()
 

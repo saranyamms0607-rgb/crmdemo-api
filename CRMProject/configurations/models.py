@@ -28,6 +28,7 @@ class Lead(models.Model):
 
     lead_region = models.CharField(max_length=100,blank=True, null=True)
 
+
     lead_address = models.JSONField( blank=True, null=True)
 
     status = models.CharField(

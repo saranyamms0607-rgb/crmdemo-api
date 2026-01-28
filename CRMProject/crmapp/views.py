@@ -132,6 +132,7 @@ class LeadDetailView(GenericAPIView):
             leads = Lead.objects.filter(is_active=True)
 
         if status_filter:
+            print(status_filter,"callback")
             leads = leads.filter(status=status_filter)
         if search:
             #  normalize search input
@@ -179,7 +180,7 @@ class LeadDetailView(GenericAPIView):
         if region:
             leads = leads.filter(lead_region__icontains=region)
         
-        if today=="true":
+        if today=="true" and status_filter == "followup":
             today_filtered_leads = []
 
             for lead in leads:
@@ -280,6 +281,7 @@ class LeadDetailView(GenericAPIView):
         ]
 
         return paginator.get_paginated_response({
+            "status":"success",
             "message": "Lead fetched successfully",
             "data": data,
             "assigned_to": {
@@ -291,7 +293,7 @@ class LeadDetailView(GenericAPIView):
 
     def post(self, request):
         lead_id = request.data.get("lead_id")
-        lead_ids = request.data.get("lead_ids")  #  NEW
+        lead_ids = request.data.get("lead_ids")  
         agent_id = request.data.get("agent_id")
 
         if not agent_id or (not lead_id and not lead_ids):
@@ -642,8 +644,6 @@ class LeadCountView(GenericAPIView):
             for phone in lead.lead_phones or []:
                 if not isinstance(phone, dict):
                     continue
-                # if phone.get("status"):
-                #     total_calls += 1
                 total_calls += int(phone.get("call_count", 0))
                 
         # TODAY FOLLOWUPS
